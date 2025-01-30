@@ -8,8 +8,9 @@ This repo contains code of gemm implemention on M1 pro (use arm NEON intrinsics)
 
 cmake -B build
 cmake --build build -j
+./build/gemm-kernel-benchmark
 ```
 
-Then you will get ouput like:
+
 
 ## Citation
