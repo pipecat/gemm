@@ -1,6 +1,7 @@
 #include <sched.h>
 #include <unistd.h>
 
+// Standard C++ headers
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -8,12 +9,18 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
-#include <random>
-#include <type_traits>
 #include <vector>
+#include <random>
 
-#if defined(__arm__) || defined(__aarch64__)
+// Required for Benchmark function
+#include <chrono>
+#include <functional>
+#include <numeric>
+
+// Check for NEON instruction set support
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
 #include <arm_neon.h>
+#define HAS_NEON 1
 #endif
 
 void Benchmark(const std::vector<int64_t> &dims, std::function<void()> func) {
@@ -71,6 +78,10 @@ void Verify(const float *A, const float *B, const int M, const int N) {
   }
 }
 
+// CUDA GEMM function declaration
+void gemm_cuda(const float* A, const float* B, float* C,
+               int M, int N, int K);
+
 void PrintMatrix(const float *A, const int M, const int N) {
   for (int m = 0; m < M; ++m) {
     for (int n = 0; n < N; ++n) {
@@ -90,9 +101,33 @@ std::vector<float> Transpose(const float *A, const int M, const int N) {
   return B;
 }
 
+// CUDA GEMM benchmark
+template <int M, int N, int K>
+void BenchmarkCUDA() {
+  std::vector<float> A(M * K);
+  std::vector<float> B(K * N);
+  std::vector<float> C(M * N);
+  
+  // Initialize matrices with random values
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dis(0.0f, 1.0f);
+  
+  std::generate(A.begin(), A.end(), [&]() { return dis(gen); });
+  std::generate(B.begin(), B.end(), [&]() { return dis(gen); });
+
+  std::vector<int64_t> dims = {M, N, K};
+  
+  Benchmark(dims, [&]() {
+    gemm_cuda(A.data(), B.data(), C.data(), M, N, K);
+  });
+}
+
+#if HAS_NEON
 inline void print_float32x4(const float32x4_t &vec) {
   alignas(16) float tmp[4];
   vst1q_f32(tmp, vec);
   std::cout << "[" << tmp[0] << ", " << tmp[1] << ", " << tmp[2] << ", "
             << tmp[3] << "]" << std::endl;
 }
+#endif
