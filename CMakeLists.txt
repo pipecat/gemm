@@ -17,7 +17,18 @@ IF(NOT EIGEN3_INCLUDE_DIR )
     message( FATAL_ERROR "Please set the environment variable EIGEN3_INCLUDE_DIR")
 ENDIF()
 
+# 添加 OpenBLAS 的 CMake 配置路径
+list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/Cellar/openblas/lib/cmake/openblas")
+
+# 查找 OpenBLAS 库
+find_package(OpenBLAS REQUIRED)
+include_directories(${OpenBLAS_INCLUDE_DIRS})
+
 add_executable(gemm-kernel-benchmark gemm.cc gemm.h)
 target_include_directories(gemm-kernel-benchmark PUBLIC "${EIGEN3_INCLUDE_DIR}")
+target_compile_options(gemm-kernel-benchmark PRIVATE -O3 -fno-unroll-loops -fno-vectorize)
+
+# 在链接时添加 OpenBLAS 库
+target_link_libraries(gemm-kernel-benchmark ${OpenBLAS_LIBRARIES})
 
 

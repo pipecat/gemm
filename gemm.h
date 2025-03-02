@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <random>
 #include <type_traits>
@@ -16,31 +17,46 @@
 #endif
 
 void Benchmark(const std::vector<int64_t> &dims, std::function<void()> func) {
-  const int warmup_times = 5;
-  const int infer_times = 20;
+  const int warmup_times = 10; // 增加预热次数
+  const int infer_times = 50;  // 增加测试次数以提高准确性
 
-  // warmup
-  for (int i = 0; i < warmup_times; ++i)
+  // 预热阶段
+  for (int i = 0; i < warmup_times; ++i) {
     func();
+  }
 
-  // run
-  auto start_time = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < infer_times; ++i)
+  // 执行测试
+  std::vector<double> times;
+  times.reserve(infer_times);
+
+  for (int i = 0; i < infer_times; ++i) {
+    auto start = std::chrono::high_resolution_clock::now();
     func();
+    auto end = std::chrono::high_resolution_clock::now();
+    times.push_back(std::chrono::duration<double>(end - start).count());
+  }
 
-  // latency
-  auto end_time = std::chrono::high_resolution_clock::now();
-  double dtime = std::chrono::duration<double>(end_time - start_time).count();
+  // 计算统计数据
+  std::sort(times.begin(), times.end());
+  double total_time = std::accumulate(times.begin(), times.end(), 0.0);
+  double avg_time = total_time / infer_times;
+  double median_time = times[infer_times / 2];
 
-  // compute GLOPs
-  double flops = 2.0 *
-                 std::accumulate(dims.begin(), dims.end(), 1LL,
-                                 std::multiplies<int64_t>()) *
-                 1.0e-09;
-  flops = flops * infer_times / dtime;
+  // 计算 GFLOPS
+  double ops = 2.0 * std::accumulate(dims.begin(), dims.end(), 1LL,
+                                     std::multiplies<int64_t>());
+  double avg_gflops = (ops * 1.0e-9) / avg_time;
+  double median_gflops = (ops * 1.0e-9) / median_time;
 
-  // print
-  std::cout << " GFLOPs: " << flops << std::endl;
+  // 美观输出
+  std::cout << "┌─────────────────────────────────┐" << std::endl;
+  std::cout << "│ 性能测试结果                    │" << std::endl;
+  std::cout << "├─────────────────────────────────┤" << std::endl;
+  std::cout << "│ 平均 GFLOPS: " << std::fixed << std::setprecision(2)
+            << std::setw(16) << avg_gflops << " │" << std::endl;
+  std::cout << "│ 中值 GFLOPS: " << std::fixed << std::setprecision(2)
+            << std::setw(16) << median_gflops << " │" << std::endl;
+  std::cout << "└─────────────────────────────────┘" << std::endl;
 }
 
 void Verify(const float *A, const float *B, const int M, const int N) {

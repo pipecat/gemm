@@ -1,6 +1,9 @@
 #include "gemm.h"
+#include "MMult_4x4_13.h"
+#include "MMult_4x4_5.h"
 #include <Eigen/Dense>
 #include <arm_neon.h>
+#include <cblas.h>
 #include <vector>
 
 void naive_row_major_sgemm(const float *A, const float *B, float *C,
@@ -75,11 +78,17 @@ void simd_transposed_B_sgemm(const float *A, const float *B, float *C,
   }
 }
 
+void openblas_sgemm(const float *A, const float *B, float *C, const int M,
+                    const int N, const int K) {
+  cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1.0f, A, K, B,
+              N, 0.0f, C, N);
+}
+
 int main() {
   // 定义矩阵维度
-  const int M = 128; // 行数
-  const int N = 128; // 列数
-  const int K = 128; // 内部维度
+  const int M = 1024; // 行数
+  const int N = 1024; // 列数
+  const int K = 1024; // 内部维度
   std::vector<int64_t> dims = {M, N, K};
 
   // 初始化矩阵
@@ -119,33 +128,54 @@ int main() {
   auto test_eigen_gemm = [&]() {
     eigen_sgemm(At.data(), Bt.data(), C.data(), M, N, K);
   };
+  auto test_4x4_gemm = [&]() {
+    mmult::MY_MMult_4x4_13(M, N, K, A.data(), K, Bt.data(), N, C.data(), N);
+  };
+  auto test_4x4_gemm_5 = [&]() {
+    MY_MMult_4x4_5(M, N, K, A.data(), K, Bt.data(), N, C.data(), N);
+  };
+  auto test_openblas_gemm = [&]() {
+    openblas_sgemm(A.data(), B.data(), C.data(), M, N, K);
+  };
 
   // 运行基准测试
-  std::cout << "Naive GEMM";
+  std::cout << "Naive GEMM" << std::endl;
   std::fill(C.begin(), C.end(), 0.0f);
   Benchmark(dims, test_naive_gemm);
   std::vector<float> Ctrue(C);
-  std::cout << "MKN GEMM";
+  std::cout << "MKN GEMM" << std::endl;
   std::fill(C.begin(), C.end(), 0.0f);
   Benchmark(dims, test_mkn_gemm);
   //   Verify(C.data(), Ctrue.data(), M, N);
-  std::cout << "SIMD MKN GEMM";
+  std::cout << "SIMD MKN GEMM" << std::endl;
   std::fill(C.begin(), C.end(), 0.0f);
   Benchmark(dims, test_simd_mkn_gemm);
   //   Verify(C.data(), Ctrue.data(), M, N);
-  std::cout << "Transposed GEMM";
+  std::cout << "Transposed GEMM" << std::endl;
   std::fill(C.begin(), C.end(), 0.0f);
   Benchmark(dims, test_transposed_gemm);
   //   Verify(C.data(), Ctrue.data(), M, N);
-  std::cout << "SIMD transposed GEMM";
+  std::cout << "SIMD transposed GEMM" << std::endl;
   std::fill(C.begin(), C.end(), 0.0f);
   Benchmark(dims, test_simd_transposed_gemm);
   //   Verify(C.data(), Ctrue.data(), M, N);
-  std::cout << "Eigen GEMM";
+  std::cout << "Eigen GEMM" << std::endl;
   std::fill(C.begin(), C.end(), 0.0f);
   Benchmark(dims, test_eigen_gemm);
   Ct = Transpose(C.data(), N, M);
   //   Verify(Ct.data(), Ctrue.data(), M, N);
+  std::cout << "4x4 GEMM" << std::endl;
+  std::fill(C.begin(), C.end(), 0.0f);
+  Benchmark(dims, test_4x4_gemm);
+  //   Verify(Ct.data(), Ctrue.data(), M, N);
+  std::cout << "4x4 GEMM 5" << std::endl;
+  std::fill(C.begin(), C.end(), 0.0f);
+  Benchmark(dims, test_4x4_gemm_5);
+  //   Verify(Ct.data(), Ctrue.data(), M, N);
+  std::cout << "OpenBLAS GEMM" << std::endl;
+  std::fill(C.begin(), C.end(), 0.0f);
+  Benchmark(dims, test_openblas_gemm);
+  // Verify(C.data(), Ctrue.data(), M, N);
 
   return 0;
 }
