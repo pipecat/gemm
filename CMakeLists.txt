@@ -63,7 +63,7 @@ else()
   endif()
 
   # Add OpenBLAS CMake config path
-  list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/Cellar/openblas/lib/cmake/openblas")
+  list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/openblas/lib/cmake/openblas")
 
   # Find OpenBLAS library
   find_package(OpenBLAS REQUIRED)
@@ -74,7 +74,7 @@ else()
   target_compile_options(gemm-kernel-benchmark PRIVATE -O3 -fno-unroll-loops -fno-vectorize)
   target_link_libraries(gemm-kernel-benchmark ${OpenBLAS_LIBRARIES})
 
-  # Add flops benchmark for ARM
-  add_executable(flops-benchmark flops.c)
-  target_compile_options(flops-benchmark PRIVATE -O3)
+  # Add flops benchmark for ARM CPU
+  add_executable(cpu_peak cpu_peak.cc)
+  target_compile_options(cpu_peak PRIVATE -O3)
 endif()

@@ -1,4 +1,13 @@
-assets/
+# 编译生成的文件
 build/
-.cache/
+*.o
+*.out
+gemm-kernel-benchmark
+flops-benchmark
+
+# IDE 和编辑器文件
 .vscode/
+.DS_Store
+
+# 临时文件
+.cache/
